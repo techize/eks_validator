@@ -1,0 +1,150 @@
+# EKS Cluster Validator Configuration Examples
+# Copy this file to config.yaml and customize for your environments
+
+# Environment-specific configurations
+environments:
+  # Test environment
+  test:
+    cluster_name: "my-test-cluster"
+    region: "us-east-1"
+    environment: "test"
+    description: "Development and testing environment"
+
+  # UAT environment
+  uat:
+    cluster_name: "my-uat-cluster"
+    region: "us-east-1"
+    environment: "uat"
+    description: "User acceptance testing environment"
+
+  # Production environment
+  prod:
+    cluster_name: "my-prod-cluster"
+    region: "us-east-1"
+    environment: "prod"
+    description: "Production environment"
+
+# AWS configuration
+aws:
+  # Default AWS profile to use
+  profile: "default"
+
+  # Default region (can be overridden per environment)
+  region: "us-east-1"
+
+  # Role assumption (optional)
+  assume_role:
+    enabled: false
+    role_arn: "arn:aws:iam::123456789012:role/EKSValidatorRole"
+    session_name: "eks-validator-session"
+
+  # Additional AWS settings
+  retry_attempts: 3
+  timeout_seconds: 60
+
+# Kubernetes configuration
+kubernetes:
+  # Path to kubeconfig file (optional, will use default if not specified)
+  kubeconfig: "~/.kube/config"
+
+  # In-cluster configuration (when running as a pod)
+  in_cluster: false
+
+  # Kubernetes API timeout
+  api_timeout_seconds: 30
+
+# Validation settings
+validation:
+  # Run checks in parallel for faster execution
+  parallel_checks: true
+
+  # Overall validation timeout
+  timeout_seconds: 300
+
+  # Components to validate (set to false to skip)
+  components:
+    infrastructure: true
+    networking: true
+    storage: true
+    addons: true
+    monitoring: true
+    applications: true
+
+  # Specific validation options
+  options:
+    # Check for security best practices
+    security_checks: true
+
+    # Validate resource limits and requests
+    resource_validation: true
+
+    # Check for deprecated APIs
+    deprecated_api_check: true
+
+# Report configuration
+report:
+  # Output format: markdown, json, html
+  output_format: "markdown"
+
+  # Include recommendations in reports
+  include_recommendations: true
+
+  # Include detailed error information
+  include_errors: true
+
+  # Report sections to include
+  sections:
+    executive_summary: true
+    infrastructure: true
+    networking: true
+    storage: true
+    addons: true
+    monitoring: true
+    applications: true
+    recommendations: true
+
+  # Custom report template (optional)
+  custom_template: null
+
+# Logging configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+  # Log file path (optional)
+  file: "logs/validator.log"
+
+  # Console logging
+  console: true
+
+  # Log format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # Maximum log file size (in MB)
+  max_file_size_mb: 10
+
+  # Number of backup log files to keep
+  backup_count: 5
+
+# Advanced settings (usually don't need to change)
+advanced:
+  # Thread pool size for parallel checks
+  thread_pool_size: 4
+
+  # AWS API pagination settings
+  pagination:
+    max_items: 100
+    page_size: 20
+
+  # Kubernetes API settings
+  k8s_api:
+    watch_timeout_seconds: 60
+    list_timeout_seconds: 120
+
+  # Cache settings for repeated API calls
+  cache:
+    enabled: true
+    ttl_seconds: 300
+
+  # Custom validation rules (optional)
+  custom_rules: []

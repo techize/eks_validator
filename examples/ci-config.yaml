@@ -1,0 +1,24 @@
+# CI/CD Configuration for EKS Validator
+# This configuration is optimized for use in CI/CD pipelines
+
+aws:
+  region: ${{ AWS_REGION }}
+  role_arn: ${{ AWS_ROLE_ARN }}
+
+kubernetes:
+  config_data: ${{ KUBE_CONFIG }}
+
+validation:
+  checks:
+    - cluster-health
+    - node-status
+    - pod-status
+  severity_threshold: error
+  timeout: 120
+
+reporting:
+  format: json
+  output_file: ci-validation-report.json
+
+logging:
+  level: INFO

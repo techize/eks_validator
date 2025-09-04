@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+include requirements.txt
+include config.yaml
+recursive-include eks_validator/templates *.j2
+recursive-include eks_validator/templates *.md
+recursive-include eks_validator/templates *.html
+global-exclude *.pyc
+global-exclude __pycache__
+prune .git
+prune .github
+prune tests
+prune docs

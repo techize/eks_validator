@@ -1,0 +1,21 @@
+# Basic EKS validation configuration
+# This is a minimal configuration for basic EKS cluster validation
+
+aws:
+  region: us-east-1
+  profile: default
+
+kubernetes:
+  config_file: ~/.kube/config
+  context: my-eks-cluster
+
+validation:
+  checks:
+    - cluster-health
+    - node-status
+    - pod-status
+  severity_threshold: warning
+
+reporting:
+  format: console
+  output_file: validation-report.txt

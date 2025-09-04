@@ -1,0 +1,275 @@
+# EKS Cluster Validation Report
+
+**Cluster:** {{ cluster_name }}
+**Region:** {{ region }}
+**Environment:** {{ environment }}
+**Generated:** {{ timestamp }}
+
+---
+
+## Executive Summary
+
+| Metric | Count | Status |
+|--------|-------|--------|
+| Total Checks | {{ summary.total_checks }} | - |
+| ✅ Passed | {{ summary.passed_checks }} | Healthy |
+| ⚠️ Warnings | {{ summary.warning_checks }} | Needs Attention |
+| ❌ Failed | {{ summary.failed_checks }} | Critical Issues |
+| ⏭️ Skipped | {{ summary.skipped_checks }} | Not Available |
+
+**Overall Status:** {% if summary.overall_status == 'PASS' %}🟢 PASS{% elif summary.overall_status == 'WARN' %}🟡 WARNING{% elif summary.overall_status == 'FAIL' %}🔴 FAIL{% else %}❓ UNKNOWN{% endif %}
+
+---
+
+## 🔴 Critical Issues (Immediate Action Required)
+
+{% if critical_issues %}
+{% for issue in critical_issues %}
+### {{ issue.category|title }} - CRITICAL
+
+**Status:** ❌ FAILED
+**Message:** {{ issue.results.message }}
+
+#### 🚨 Immediate Actions Required:
+{% if 'IAM role' in issue.results.message %}
+- **Check IAM Role Existence:**
+  ```bash
+  aws iam get-role --role-name <role-name> --region {{ region }}
+  ```
+- **Create Missing IAM Role:**
+  ```bash
+  aws iam create-role --role-name <role-name> --assume-role-policy-document file://trust-policy.json
+  ```
+- **Attach Required Policies:**
+  ```bash
+  aws iam attach-role-policy --role-name <role-name> --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+  ```
+{% elif 'VPC CNI' in issue.results.message %}
+- **Install VPC CNI Addon:**
+  ```bash
+  aws eks create-addon --cluster-name {{ cluster_name }} --addon-name vpc-cni --region {{ region }}
+  ```
+- **Verify Installation:**
+  ```bash
+  aws eks describe-addon --cluster-name {{ cluster_name }} --addon-name vpc-cni --region {{ region }}
+  ```
+{% elif 'CloudWatch' in issue.results.message %}
+- **Enable CloudWatch Logs:**
+  ```bash
+  aws eks update-cluster-config --name {{ cluster_name }} --region {{ region }} \
+    --logging '{"clusterLogging":[{"types":["api","audit","authenticator","controllerManager","scheduler"],"enabled":true}]}'
+  ```
+{% endif %}
+
+**Priority:** HIGH - Address immediately to prevent service disruption
+{% endfor %}
+{% else %}
+✅ No critical issues found
+{% endif %}
+
+---
+
+## ⚠️ Warnings (Review and Address)
+
+{% if warnings %}
+{% for warning in warnings %}
+### {{ warning.category|title }} - WARNING
+
+**Status:** ⚠️ WARNING
+**Message:** {{ warning.results.message }}
+
+#### 📋 Recommended Actions:
+{% if 'version' in warning.results.message %}
+- **Check EKS Version:**
+  ```bash
+  aws eks describe-cluster --name {{ cluster_name }} --region {{ region }} --query 'cluster.version'
+  ```
+- **Plan Version Upgrade:**
+  ```bash
+  aws eks update-cluster-version --name {{ cluster_name }} --region {{ region }} --version <target-version>
+  ```
+{% elif 'security' in warning.results.message %}
+- **Review Security Groups:**
+  ```bash
+  aws ec2 describe-security-groups --filters Name=vpc-id,Values={{ vpc_id }}
+  ```
+- **Update Security Group Rules:**
+  ```bash
+  aws ec2 authorize-security-group-ingress --group-id <sg-id> --protocol tcp --port 443 --cidr 0.0.0.0/0
+  ```
+{% endif %}
+
+**Priority:** MEDIUM - Address when convenient
+{% endfor %}
+{% else %}
+✅ No warnings found
+{% endif %}
+
+---
+
+## 📊 Detailed Results by Category
+
+### Infrastructure Components
+{% if detailed_results.infrastructure %}
+{% for item in detailed_results.infrastructure %}
+**{{ item.path|title }}:** {% if item.results.check_status == 'PASS' %}✅ PASS{% elif item.results.check_status == 'WARN' %}⚠️ WARNING{% elif item.results.check_status == 'FAIL' %}❌ FAIL{% else %}⏭️ {{ item.results.check_status }}{% endif %}
+{% if item.results.message %}
+- {{ item.results.message }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No infrastructure checks performed
+{% endif %}
+
+### Networking Configuration
+{% if detailed_results.networking %}
+{% for item in detailed_results.networking %}
+**{{ item.path|title }}:** {% if item.results.check_status == 'PASS' %}✅ PASS{% elif item.results.check_status == 'WARN' %}⚠️ WARNING{% elif item.results.check_status == 'FAIL' %}❌ FAIL{% else %}⏭️ {{ item.results.check_status }}{% endif %}
+{% if item.results.message %}
+- {{ item.results.message }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No networking checks performed
+{% endif %}
+
+### Storage Systems
+{% if detailed_results.storage %}
+{% for item in detailed_results.storage %}
+**{{ item.path|title }}:** {% if item.results.check_status == 'PASS' %}✅ PASS{% elif item.results.check_status == 'WARN' %}⚠️ WARNING{% elif item.results.check_status == 'FAIL' %}❌ FAIL{% else %}⏭️ {{ item.results.check_status }}{% endif %}
+{% if item.results.message %}
+- {{ item.results.message }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No storage checks performed
+{% endif %}
+
+### Addons & Extensions
+{% if detailed_results.addons %}
+{% for item in detailed_results.addons %}
+**{{ item.path|title }}:** {% if item.results.check_status == 'PASS' %}✅ PASS{% elif item.results.check_status == 'WARN' %}⚠️ WARNING{% elif item.results.check_status == 'FAIL' %}❌ FAIL{% else %}⏭️ {{ item.results.check_status }}{% endif %}
+{% if item.results.message %}
+- {{ item.results.message }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No addon checks performed
+{% endif %}
+
+### Monitoring & Observability
+{% if detailed_results.monitoring %}
+{% for item in detailed_results.monitoring %}
+**{{ item.path|title }}:** {% if item.results.check_status == 'PASS' %}✅ PASS{% elif item.results.check_status == 'WARN' %}⚠️ WARNING{% elif item.results.check_status == 'FAIL' %}❌ FAIL{% else %}⏭️ {{ item.results.check_status }}{% endif %}
+{% if item.results.message %}
+- {{ item.results.message }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No monitoring checks performed
+{% endif %}
+
+### Applications & Services
+{% if detailed_results.applications %}
+{% for item in detailed_results.applications %}
+**{{ item.path|title }}:** {% if item.results.check_status == 'PASS' %}✅ PASS{% elif item.results.check_status == 'WARN' %}⚠️ WARNING{% elif item.results.check_status == 'FAIL' %}❌ FAIL{% else %}⏭️ {{ item.results.check_status }}{% endif %}
+{% if item.results.message %}
+- {{ item.results.message }}
+{% endif %}
+{% endfor %}
+{% else %}
+- No application checks performed
+{% endif %}
+
+#### Application Details
+---
+
+## 📋 Action Plan
+
+### Immediate Actions (Next 24 hours)
+{% if summary.overall_status == 'FAIL' %}
+1. **Address all CRITICAL issues** listed above
+2. **Verify cluster stability** after fixes
+3. **Test application functionality**
+{% endif %}
+
+### Short-term Actions (Next week)
+{% if summary.overall_status == 'WARN' or summary.warning_checks > 0 %}
+1. **Review and address WARNING issues**
+2. **Implement monitoring improvements**
+3. **Clean up unused resources**
+{% endif %}
+
+### Long-term Improvements
+1. **Implement automated monitoring** for all metrics
+2. **Set up alerting** for critical issues
+3. **Regular validation** schedule (weekly/monthly)
+4. **Documentation updates** based on findings
+
+## 🔧 Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### Kubernetes API Connection Issues
+```bash
+# Check cluster connectivity
+aws eks update-kubeconfig --name {{ cluster_name }} --region {{ region }}
+kubectl get nodes
+
+# Verify AWS credentials
+aws sts get-caller-identity
+
+# Check cluster status
+aws eks describe-cluster --name {{ cluster_name }} --region {{ region }}
+```
+
+#### Load Balancer Issues
+```bash
+# Check load balancer health
+aws elbv2 describe-load-balancers --region {{ region }}
+
+# Verify target group health
+aws elbv2 describe-target-health --target-group-arn <target-group-arn> --region {{ region }}
+```
+
+#### Storage Issues
+```bash
+# Check storage class availability
+kubectl get storageclass
+
+# Verify CSI driver status
+kubectl get csidriver
+
+# Check persistent volume status
+kubectl get pv,pvc
+```
+
+#### Network Issues
+```bash
+# Check VPC configuration
+aws ec2 describe-vpcs --region {{ region }}
+
+# Verify security groups
+aws ec2 describe-security-groups --region {{ region }}
+
+# Check route tables
+aws ec2 describe-route-tables --region {{ region }}
+```
+
+---
+
+## 📞 Support Information
+
+**Report ID:** {{ timestamp }}
+**Environment:** {{ environment }}
+**Cluster:** {{ cluster_name }}
+**Region:** {{ region }}
+
+For additional support:
+- Check AWS EKS documentation
+- Review CloudWatch logs for detailed error messages
+- Contact DevOps team with this report
+
+---
+
+*Generated by EKS Cluster Validator v2.0.0 | {{ timestamp }}*

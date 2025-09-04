@@ -1,0 +1,39 @@
+# Advanced EKS validation configuration
+# This configuration includes all available options for comprehensive validation
+
+aws:
+  region: us-west-2
+  profile: production
+  role_arn: arn:aws:iam::123456789012:role/EKSValidatorRole
+  session_duration: 3600
+
+kubernetes:
+  config_file: ~/.kube/config
+  context: production-eks
+  namespace: default
+
+validation:
+  checks:
+    - cluster-health
+    - node-status
+    - pod-status
+    - security-groups
+    - iam-permissions
+    - network-policies
+    - resource-quotas
+    - pod-security
+  severity_threshold: info
+  timeout: 300
+  retry_count: 3
+  retry_delay: 5
+
+reporting:
+  format: json
+  output_file: /var/log/eks-validation-report.json
+  include_timestamps: true
+  include_metadata: true
+
+logging:
+  level: INFO
+  file: /var/log/eks-validator.log
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

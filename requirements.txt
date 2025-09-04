@@ -1,0 +1,32 @@
+boto3>=1.34.0
+kubernetes>=29.0.0
+click>=8.1.0
+jinja2>=3.1.0
+pyyaml>=6.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+colorama>=0.4.6
+tabulate>=0.9.0
+rich>=13.7.0
+pydantic>=2.5.0
+loguru>=0.7.0
+
+# Test dependencies (optional)
+# Install with: pip install -r requirements.txt -r requirements-test.txt
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0
+responses>=0.23.0
+freezegun>=1.2.0
+faker>=15.0.0
+coverage>=7.0.0
+coverage-badge>=1.1.0
+mypy>=1.0.0
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
+pytest-doctestplus>=1.0.0
+pytest-benchmark>=4.0.0
+moto>=4.1.0
+pre-commit>=3.0.0

@@ -1,0 +1,306 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  # Code security scanning
+  code-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety semgrep
+
+    - name: Run Bandit
+      run: |
+        bandit -r eks_validator/ main.py test_basic.py -f json -o bandit-report.json
+
+    - name: Upload Bandit results to GitHub
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: bandit-report.json
+        category: bandit
+
+    - name: Run Semgrep
+      run: |
+        semgrep --config auto --json > semgrep-report.json || true
+
+    - name: Upload Semgrep results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: semgrep-report
+        path: semgrep-report.json
+
+  # Dependency security
+  dependency-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install safety pip-audit
+
+    - name: Run Safety
+      run: |
+        safety check --json > safety-report.json
+
+    - name: Run pip-audit
+      run: |
+        pip-audit --format json > pip-audit-report.json || true
+
+    - name: Upload Safety results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: safety-report
+        path: safety-report.json
+
+    - name: Upload pip-audit results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: pip-audit-report
+        path: pip-audit-report.json
+
+  # Container security
+  container-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker image
+      run: |
+        docker build -t eks-validator-scan .
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'image'
+        scan-ref: 'eks-validator-scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run Docker Scout
+      run: |
+        docker scout cves eks-validator-scan --format sarif > docker-scout-report.sarif || true
+
+    - name: Upload Docker Scout results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'docker-scout-report.sarif'
+        category: docker-scout
+
+  # Infrastructure as Code security
+  iac-security:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, '.yml') || contains(github.event.head_commit.modified, '.yaml')
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        framework: yaml
+        output_format: sarif
+        output_file_path: checkov-results.sarif
+
+    - name: Upload Checkov results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: checkov-results.sarif
+
+  # Secrets detection
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  # Compliance check
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for sensitive files
+      run: |
+        # Check for common sensitive files
+        SENSITIVE_FILES=(
+          ".env"
+          ".env.local"
+          ".env.*.local"
+          "secrets.json"
+          "credentials.json"
+          "*.key"
+          "*.pem"
+          "*.p12"
+          "*.pfx"
+          "id_rsa"
+          "id_dsa"
+          "id_ecdsa"
+          "id_ed25519"
+        )
+
+        FOUND_SENSITIVE=0
+        for file in "${SENSITIVE_FILES[@]}"; do
+          if compgen -G "$file" > /dev/null; then
+            echo "❌ Found sensitive file: $file"
+            FOUND_SENSITIVE=1
+          fi
+        done
+
+        if [ $FOUND_SENSITIVE -eq 1 ]; then
+          echo "Sensitive files detected! Please remove or .gitignore them."
+          exit 1
+        else
+          echo "✅ No sensitive files detected"
+        fi
+
+    - name: Check for hardcoded secrets
+      run: |
+        # Simple pattern matching for potential secrets
+        PATTERNS=(
+          "password.*="
+          "secret.*="
+          "token.*="
+          "key.*="
+          "AKIA[0-9A-Z]{16}"
+          "sk-[0-9a-zA-Z]{48}"
+        )
+
+        FOUND_SECRETS=0
+        for pattern in "${PATTERNS[@]}"; do
+          if grep -r "$pattern" --include="*.py" --include="*.yml" --include="*.yaml" . --exclude-dir=.git --exclude-dir=__pycache__ > /dev/null 2>&1; then
+            echo "⚠️  Potential secret pattern found: $pattern"
+            FOUND_SECRETS=1
+          fi
+        done
+
+        if [ $FOUND_SECRETS -eq 1 ]; then
+          echo "Review potential secrets before committing!"
+        fi
+
+  # Generate security report
+  security-report:
+    runs-on: ubuntu-latest
+    needs: [code-security, dependency-security, container-security, secrets-scan, compliance]
+    if: always()
+    steps:
+    - name: Generate security summary
+      run: |
+        echo "# Security Scan Summary" > security-summary.md
+        echo "" >> security-summary.md
+        echo "## Scan Results" >> security-summary.md
+        echo "" >> security-summary.md
+
+        # Check job statuses
+        if [ "${{ needs.code-security.result }}" == "success" ]; then
+          echo "✅ Code Security: PASSED" >> security-summary.md
+        else
+          echo "❌ Code Security: FAILED" >> security-summary.md
+        fi
+
+        if [ "${{ needs.dependency-security.result }}" == "success" ]; then
+          echo "✅ Dependency Security: PASSED" >> security-summary.md
+        else
+          echo "❌ Dependency Security: FAILED" >> security-summary.md
+        fi
+
+        if [ "${{ needs.container-security.result }}" == "success" ]; then
+          echo "✅ Container Security: PASSED" >> security-summary.md
+        else
+          echo "❌ Container Security: FAILED" >> security-summary.md
+        fi
+
+        if [ "${{ needs.secrets-scan.result }}" == "success" ]; then
+          echo "✅ Secrets Scan: PASSED" >> security-summary.md
+        else
+          echo "❌ Secrets Scan: FAILED" >> security-summary.md
+        fi
+
+        if [ "${{ needs.compliance.result }}" == "success" ]; then
+          echo "✅ Compliance Check: PASSED" >> security-summary.md
+        else
+          echo "❌ Compliance Check: FAILED" >> security-summary.md
+        fi
+
+        echo "" >> security-summary.md
+        echo "## Recommendations" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "- Review all security scan results in the artifacts" >> security-summary.md
+        echo "- Address any high or critical vulnerabilities" >> security-summary.md
+        echo "- Ensure no sensitive data is committed" >> security-summary.md
+        echo "- Keep dependencies updated" >> security-summary.md
+
+    - name: Upload security summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-summary
+        path: security-summary.md
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security-summary.md', 'utf8');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });
