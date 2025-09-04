@@ -73,27 +73,60 @@ test-full: test
 	@echo "Running full test suite..."
 	pytest tests/ -v --cov=eks_validator --cov-report=html
 
-# Docker build (if you add a Dockerfile later)
+# Docker build
 docker-build:
 	@echo "Building Docker image..."
 	docker build -t eks-cluster-validator .
 
-# Quick validation test (requires AWS credentials)
-quick-test:
-	@echo "Running quick validation test..."
-	python main.py quick-check test
+# Docker run (requires AWS credentials)
+docker-run:
+	@echo "Running Docker container..."
+	docker run --rm \
+		-e AWS_PROFILE=${AWS_PROFILE} \
+		-e AWS_REGION=${AWS_REGION} \
+		-v ~/.aws:/root/.aws:ro \
+		eks-cluster-validator:latest \
+		$(ARGS)
+
+# Build for PyPI
+pypi-build:
+	@echo "Building for PyPI..."
+	python -m build
+
+# Check PyPI package
+pypi-check:
+	@echo "Checking PyPI package..."
+	twine check dist/*
+
+# Upload to PyPI (requires TWINE_USERNAME and TWINE_PASSWORD)
+pypi-upload:
+	@echo "Uploading to PyPI..."
+	twine upload dist/*
+
+# Upload to Test PyPI
+pypi-upload-test:
+	@echo "Uploading to Test PyPI..."
+	twine upload --repository testpypi dist/*
 
 # Generate documentation
 docs:
 	@echo "Generating documentation..."
-	# Add documentation generation commands here
+	mkdocs build
 
-# Security scan
-security:
-	@echo "Running security scan..."
-	bandit -r eks_validator/
-	safety check
+# Serve documentation locally
+docs-serve:
+	@echo "Serving documentation locally..."
+	mkdocs serve
 
-# All-in-one setup and test
-all: dev-setup format lint test package
-	@echo "All tasks completed successfully!"
+# Deploy documentation
+docs-deploy:
+	@echo "Deploying documentation..."
+	mkdocs gh-deploy
+
+# Release workflow
+release: clean format lint test pypi-build pypi-check
+	@echo "Release build complete! Ready for publishing."
+
+# Full CI/CD simulation
+ci: clean install format lint test pypi-build docker-build
+	@echo "CI/CD pipeline simulation complete!"

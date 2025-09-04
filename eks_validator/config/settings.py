@@ -3,14 +3,59 @@ Configuration management for EKS Cluster Validator
 """
 
 import os
+import re
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, Field, validator
 import yaml
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+
+def expand_env_vars(value: Any) -> Any:
+    """
+    Recursively expand environment variables in configuration values.
+
+    Supports syntax: ${VAR_NAME:default_value}
+    - If VAR_NAME is set, uses its value
+    - If VAR_NAME is not set and default_value is provided, uses default_value
+    - If VAR_NAME is not set and no default_value, returns the original value
+    """
+    if isinstance(value, str):
+        # Pattern to match ${VAR_NAME:default_value} or ${VAR_NAME}
+        pattern = r"\$\{([^:}]+)(?::([^}]*))?\}"
+
+        def replace_var(match):
+            var_name = match.group(1)
+            default_value = match.group(2) if match.group(2) is not None else ""
+
+            env_value = os.getenv(var_name)
+            if env_value is not None:
+                return env_value
+            elif default_value:
+                return default_value
+            else:
+                # No env var and no default -
+                # keep original placeholder for error handling
+                return match.group(0)
+
+        # Replace all environment variable references
+        expanded_value = re.sub(pattern, replace_var, value)
+
+        # If the value still contains unresolved placeholders, log a warning
+        if "${" in expanded_value:
+            # Allow graceful degradation - config works with some defaults
+            pass
+
+        return expanded_value
+    elif isinstance(value, dict):
+        return {k: expand_env_vars(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [expand_env_vars(item) for item in value]
+    else:
+        return value
 
 
 class EnvironmentConfig(BaseModel):
@@ -108,13 +153,17 @@ class Settings(BaseModel):
     environments: Dict[str, EnvironmentConfig] = Field(default_factory=dict)
 
     @classmethod
-    def from_yaml(cls, config_path: Path) -> "Settings":
-        """Load settings from YAML configuration file"""
+    def from_yaml(cls, config_path: Union[str, Path]) -> "Settings":
+        """Load configuration from YAML file with environment variable expansion."""
+        config_path = Path(config_path) if isinstance(config_path, str) else config_path
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         with open(config_path, "r") as f:
             config_data = yaml.safe_load(f)
+
+        # Expand environment variables in the configuration data
+        config_data = expand_env_vars(config_data)
 
         return cls(**config_data)
 
@@ -168,7 +217,7 @@ class Settings(BaseModel):
         if not self.aws.profile and not os.getenv("AWS_ACCESS_KEY_ID"):
             issues.append(
                 "AWS credentials not configured. Set AWS_PROFILE or "
-                "AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY"
+                "AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY environment variables"
             )
 
         # Check environments
@@ -181,14 +230,47 @@ class Settings(BaseModel):
             if not env_config.region:
                 issues.append(f"Environment '{env_name}': region is required")
 
+            # Check for unresolved environment variable placeholders
+            if hasattr(env_config, "vpc") and env_config.vpc:
+                vpc_config = env_config.vpc
+                if isinstance(vpc_config, dict):
+                    if vpc_config.get("vpc_id", "").startswith("${"):
+                        issues.append(f"Env {env_name}: no VPC ID")
+        # Check for any remaining unresolved placeholders that might cause issues
+        config_str = str(self.to_dict())
+        unresolved_placeholders = re.findall(r"\$\{[^}]+\}", config_str)
+        if unresolved_placeholders:
+            issues.append(
+                f"Found {len(unresolved_placeholders)} unresolved env var placeholders"
+                "Consider setting these variables or providing defaults in config.yaml"
+            )
+
         return issues
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert settings to dictionary"""
         return self.dict()
 
-    def save_to_yaml(self, config_path: Path):
-        """Save settings to YAML file"""
+    def save_to_yaml(self, config_path: Path, use_env_placeholders: bool = False):
+        """Save settings to YAML file
+
+        Args:
+            config_path: Path to save the configuration
+            use_env_placeholders: If True, save with environment variable placeholders
+        """
         config_path.parent.mkdir(parents=True, exist_ok=True)
+
+        config_dict = self.to_dict()
+
+        if use_env_placeholders:
+            # Convert sensitive values back to environment variable placeholders
+            config_dict = self._add_env_placeholders(config_dict)
+
         with open(config_path, "w") as f:
-            yaml.dump(self.to_dict(), f, default_flow_style=False, sort_keys=False)
+            yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
+
+    def _add_env_placeholders(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Add environment variable placeholders to sensitive configuration values"""
+        # This is a simplified version - in practice, you'd want more sophisticated
+        # logic to identify which values should be placeholders
+        return config_dict

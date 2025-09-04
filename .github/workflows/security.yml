@@ -45,12 +45,12 @@ jobs:
       run: |
         semgrep --config auto --json > semgrep-report.json || true
 
-    - name: Upload Semgrep results
-      uses: actions/upload-artifact@v3
+        - name: Upload Semgrep results
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: semgrep-report
-        path: semgrep-report.json
+        sarif_file: semgrep-report.json
+        category: semgrep
 
   # Dependency security
   dependency-security:
@@ -81,14 +81,14 @@ jobs:
         pip-audit --format json > pip-audit-report.json || true
 
     - name: Upload Safety results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: safety-report
         path: safety-report.json
 
     - name: Upload pip-audit results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: pip-audit-report
@@ -285,7 +285,7 @@ jobs:
         echo "- Keep dependencies updated" >> security-summary.md
 
     - name: Upload security summary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: security-summary
         path: security-summary.md

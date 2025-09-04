@@ -66,12 +66,12 @@ jobs:
 
     - name: Create GitHub Release
       if: github.event_name == 'workflow_dispatch'
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ github.event.inputs.version }}
-        release_name: Release v${{ github.event.inputs.version }}
+        name: Release v${{ github.event.inputs.version }}
         body_path: release_notes.md
         draft: false
         prerelease: false
@@ -97,7 +97,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: techize/eks-validator
+        images: techize/eks-cluster-validator
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -176,4 +176,4 @@ jobs:
 
     - name: Test Docker image
       run: |
-        docker run --rm techize/eks-validator:latest --help
+        docker run --rm techize/eks-cluster-validator:latest --help

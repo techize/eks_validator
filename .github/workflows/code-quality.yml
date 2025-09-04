@@ -63,14 +63,14 @@ jobs:
         safety check --json > safety-report.json || true
 
     - name: Upload bandit report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: bandit-report
         path: bandit-report.json
 
     - name: Upload safety report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: safety-report
@@ -126,7 +126,7 @@ jobs:
         pip list --outdated --format=json > outdated.json || true
 
     - name: Upload outdated dependencies report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: outdated-dependencies
@@ -156,7 +156,7 @@ jobs:
         coverage html
 
     - name: Upload coverage reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coverage-report
@@ -190,7 +190,7 @@ jobs:
         " > performance.txt
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-results
         path: performance.txt

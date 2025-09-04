@@ -1,0 +1,47 @@
+# Development dependencies for EKS Cluster Validator
+# This file is used by pip-tools to generate requirements-dev.txt
+
+# Production dependencies (included for development)
+-r requirements.in
+
+# Testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0
+
+# Test utilities
+responses>=0.23.0
+freezegun>=1.2.0
+faker>=15.0.0
+
+# Code coverage
+coverage>=7.0.0
+coverage-badge>=1.1.0
+
+# Type checking
+mypy>=1.0.0
+
+# Linting and formatting
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
+
+# Security scanning
+bandit>=1.7.0
+safety>=2.3.0
+
+# Documentation linting
+markdownlint-cli>=0.37.0
+yamllint>=1.32.0
+
+# Development tools
+pre-commit>=3.0.0
+pip-tools>=7.0.0
+
+# Build tools
+build>=1.0.0
+twine>=4.0.0
+
+# Additional security scanning
+semgrep>=1.0.0
