@@ -142,7 +142,7 @@ report
 *.report
 
 # Specification documents with sensitive data
-EKS_VALIDATOR_SPECIFICATION.md
+# EKS_VALIDATOR_SPECIFICATION.md - now anonymized and safe for repo
 
 # Temporary files
 *.tmp

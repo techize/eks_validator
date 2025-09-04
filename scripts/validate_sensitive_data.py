@@ -85,6 +85,7 @@ class SensitiveDataValidator:
             "reports/example_validation_report.md",
             "README.md",  # Contains placeholder examples
             "scripts/validate_sensitive_data.py",  # Exclude this validation script
+            "EKS_VALIDATOR_SPECIFICATION.md",  # Anonymized specification document
         }
 
         # Directories to exclude from validation
